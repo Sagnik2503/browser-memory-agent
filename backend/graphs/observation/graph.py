@@ -39,9 +39,9 @@ if __name__ == "__main__":
     result = run_pipeline()
     raw = result["raw_events"]
     norm = result["normalized_events"]
-    print("\n first 2 normalised events\n")
+    print("\nnormalised events as json \n")
 
-    structured_output = [event.model_dump(mode="json") for event in norm[:2]]
+    structured_output = [event.model_dump(mode="json") for event in norm]
 
     print(json.dumps(structured_output, indent=2, default=str))
 
