@@ -10,6 +10,7 @@ from graphs.observation.nodes import ingest_events, normalize_events
 
 
 def build_observation_graph() -> StateGraph:
+    """Build and compile the observation pipeline: ingest_events -> normalize_events."""
     builder = StateGraph(ObservationState)
 
     builder.add_node("ingest_events", ingest_events)
@@ -23,6 +24,7 @@ def build_observation_graph() -> StateGraph:
 
 
 def run_pipeline() -> ObservationState:
+    """Build and invoke the observation graph with an empty initial state."""
     graph = build_observation_graph()
     initial_state: ObservationState = {
         "raw_events": [],

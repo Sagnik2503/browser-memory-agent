@@ -26,6 +26,55 @@ async function getTabInfo(tabId) {
   }
 }
 
+//runs when the Chrome window loses or gains focus (sleep, app switch, screen lock)
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  const now = Date.now();
+
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    // Window lost focus — close out the current tab's dwell
+    if (lastActiveTab) {
+      const dwellDelta = now - lastActiveTab.timestamp;
+      await sendEvent({
+        event_type: 'tab_inactive',
+        url: lastActiveTab.url,
+        title: lastActiveTab.title,
+        tab_id: lastActiveTab.tabId,
+        timestamp: now,
+        dwell_delta: dwellDelta,
+      });
+    }
+  } else {
+    // Window regained focus — reset timestamp and mark tab active again
+    if (lastActiveTab) {
+      lastActiveTab.timestamp = now;
+      await sendEvent({
+        event_type: 'tab_active',
+        url: lastActiveTab.url,
+        title: lastActiveTab.title,
+        tab_id: lastActiveTab.tabId,
+        timestamp: now,
+      });
+    }
+  }
+});
+
+//runs when a tab is closed
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  if (lastActiveTab && lastActiveTab.tabId === tabId) {
+    const now = Date.now();
+    const dwellDelta = now - lastActiveTab.timestamp;
+    await sendEvent({
+      event_type: 'tab_inactive',
+      url: lastActiveTab.url,
+      title: lastActiveTab.title,
+      tab_id: lastActiveTab.tabId,
+      timestamp: now,
+      dwell_delta: dwellDelta,
+    });
+    lastActiveTab = null;
+  }
+});
+
 //runs when user switches the tab
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   const now = Date.now();
@@ -62,6 +111,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   };
 });
 
+//This fires every time a tab finishes loading a page
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete' || !tab.url) return;
 

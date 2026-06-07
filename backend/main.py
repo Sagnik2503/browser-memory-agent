@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from graphs.observation.nodes.ingest_events import event_buffer
 from graphs.observation.graph import run_pipeline
+
+EVENTS_LOG = Path(__file__).resolve().parent / "session.jsonl"
 
 app = FastAPI(title="Browser Agent Backend")
 
@@ -37,9 +40,28 @@ async def run():
     result = run_pipeline()
     raw = result["raw_events"]
     norm = result["normalized_events"]
+
+    if raw:
+        with open(EVENTS_LOG, "a") as f:
+            for e in raw:
+                f.write(json.dumps(e.model_dump(mode="json")) + "\n")
+
     return {
         "raw_count": len(raw),
         "normalized_count": len(norm) if norm else 0,
         "raw_events": [e.model_dump(mode="json") for e in raw],
         "normalized_events": [e.model_dump(mode="json") for e in norm] if norm else [],
     }
+
+
+@app.get("/session")
+async def get_session():
+    if not EVENTS_LOG.exists():
+        return {"events": []}
+    events = []
+    with open(EVENTS_LOG) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                events.append(json.loads(line))
+    return {"events": events}
